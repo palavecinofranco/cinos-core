@@ -92,8 +92,8 @@ public class UserController {
             @RequestParam(value = "image", required = false) MultipartFile image) throws UserNotFoundException, IOException {
         ObjectMapper objectMapper = new ObjectMapper();
         UpdateAccountDTO accountDTO = objectMapper.readValue(account, UpdateAccountDTO.class);
-        accountService.updateUserAccount(accountDTO, image);
-        return ResponseEntity.ok().build();
+        AccountDTO updated = accountService.updateUserAccount(accountDTO, image);
+        return ResponseEntity.ok(updated);
     }
 
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")

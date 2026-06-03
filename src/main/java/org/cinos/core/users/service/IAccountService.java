@@ -22,7 +22,7 @@ public interface IAccountService {
     void decrementFollowings(Long fromUserId);
     void decrementFollowers(Long fromUserId);
     List<AccountEntity> findByUsernameContainingIgnoreCase(String query);
-    void updateUserAccount(UpdateAccountDTO accountDTO, MultipartFile file) throws UserNotFoundException, IOException;
+    AccountDTO updateUserAccount(UpdateAccountDTO accountDTO, MultipartFile file) throws UserNotFoundException, IOException;
     void updateContactInfo(ContactInfoDTO contactInfo);
     ContactInfoDTO getContactInfo();
 }

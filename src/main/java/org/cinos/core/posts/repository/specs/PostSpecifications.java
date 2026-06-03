@@ -27,9 +27,10 @@ public class PostSpecifications {
             var accountJoin = root.join("userAccount");
 
             List<Predicate> predicates = new ArrayList<>();
-            // 1. Predicados base
+            // 1. Predicados base — comparar contra UserEntity.id (no AccountEntity.id)
+            var userJoin = accountJoin.join("user");
             Predicate excludeCurrentUserPredicate = criteriaBuilder.notEqual(
-                    accountJoin.get("id"), currentUserId
+                    userJoin.get("id"), currentUserId
             );
             Predicate activePostsPredicate = criteriaBuilder.isTrue(root.get("active"));
             predicates.add(excludeCurrentUserPredicate);
@@ -165,9 +166,15 @@ public class PostSpecifications {
         };
     }
 
-    public static Specification<PostEntity> postFilterSpec(PostFilterDTO filter) {
+    public static Specification<PostEntity> postFilterSpec(PostFilterDTO filter, Long currentUserId) {
         return (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+
+            // Excluir publicaciones del usuario actual y solo activas
+            var accountJoin = root.join("userAccount");
+            var userJoin    = accountJoin.join("user");
+            predicates.add(cb.notEqual(userJoin.get("id"), currentUserId));
+            predicates.add(cb.isTrue(root.get("active")));
 
             if (filter.make() != null) {
                 predicates.add(root.get("make").in(filter.make()));

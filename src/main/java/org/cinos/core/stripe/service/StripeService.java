@@ -26,6 +26,9 @@ public class StripeService {
     @Value("${stripe.secret.key}")
     private String stripeSecretKey;
 
+    @Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrl;
+
     // Simulación de base de datos para ejemplo (reemplaza por tu repo real)
     private final Map<String, String> userIdToCustomerId = new HashMap<>();
     private final Map<String, String> userIdToSubscriptionId = new HashMap<>();
@@ -42,15 +45,16 @@ public class StripeService {
         List<SubscriptionPlanDto> plans = new ArrayList<>();
         plans.add(new SubscriptionPlanDto(
                 "premium_monthly",
-                "Premium Mensual",
-                999, // $9.99 en centavos
+                "Cinos Pro",
+                999,
                 "USD",
                 "month",
                 List.of(
-                        "Filtros avanzados ilimitados",
-                        "Recomendaciones ilimitadas",
-                        "Sin anuncios",
-                        "Soporte prioritario"
+                        "3 verificaciones técnicas por mes",
+                        "3 informes técnicos por mes",
+                        "Badge Premium en tu perfil",
+                        "Alertas personalizadas de autos",
+                        "Mayor visibilidad en el feed"
                 )
         ));
         return plans;
@@ -267,15 +271,16 @@ public class StripeService {
     /**
      * Crea una sesión de Stripe Checkout para suscripción
      */
-    public String createSubscriptionCheckoutSession(String priceId, String customerEmail) throws StripeException {
+    public String createSubscriptionCheckoutSession(String planId, String customerEmail) throws StripeException {
         Stripe.apiKey = stripeSecretKey;
-        String successUrl = "cinos://suscripcion-exito";
+        String resolvedPriceId = getPriceIdForPlan(planId);
         SessionCreateParams params = SessionCreateParams.builder()
                 .setMode(SessionCreateParams.Mode.SUBSCRIPTION)
-                .setSuccessUrl(successUrl)
+                .setSuccessUrl(frontendUrl + "/subscription/success")
+                .setCancelUrl(frontendUrl + "/subscription/cancel")
                 .addLineItem(
                         SessionCreateParams.LineItem.builder()
-                                .setPrice(priceId)
+                                .setPrice(resolvedPriceId)
                                 .setQuantity(1L)
                                 .build()
                 )

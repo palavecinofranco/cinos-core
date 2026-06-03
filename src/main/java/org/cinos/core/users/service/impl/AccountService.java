@@ -122,15 +122,32 @@ public class AccountService implements IAccountService {
     }
 
     @Override
-    public void updateUserAccount(final UpdateAccountDTO accountDTO, MultipartFile file) throws IOException {
-        AccountEntity accountEntity = accountRepository.findById(accountDTO.id()).orElseThrow(()->new UsernameNotFoundException("Usuario no encontrado"));
+    public AccountDTO updateUserAccount(final UpdateAccountDTO accountDTO, MultipartFile file) throws IOException {
+        UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        UserEntity userEntity = (UserEntity) authentication.getPrincipal();
+        AccountEntity accountEntity = accountRepository.findById(userEntity.getId()).orElseThrow(() -> new UsernameNotFoundException("Usuario no encontrado"));
         accountEntity.getUser().setName(accountDTO.name());
         accountEntity.getUser().setLastname(accountDTO.lastname());
+        accountEntity.setAttentionHours(accountDTO.attentionHours());
         if (file != null && !file.isEmpty()) {
             String avatarImgUrl = storageService.uploadFile(file);
             accountEntity.setAvatarImg(avatarImgUrl);
         }
         accountRepository.save(accountEntity);
+        return AccountDTO.builder()
+                .id(accountEntity.getId())
+                .email(accountEntity.getUser().getEmail())
+                .name(accountEntity.getUser().getName())
+                .lastname(accountEntity.getUser().getLastname())
+                .username(accountEntity.getUser().getUsername())
+                .points(accountEntity.getPoints())
+                .followers(accountEntity.getFollowers())
+                .followings(accountEntity.getFollowings())
+                .avatarImg(accountEntity.getAvatarImg())
+                .roles(accountEntity.getUser().getRoles().stream().map(Enum::name).toList())
+                .phone(accountEntity.getPhone())
+                .attentionHours(accountEntity.getAttentionHours())
+                .build();
     }
 
     @Override

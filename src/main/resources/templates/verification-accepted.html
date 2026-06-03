@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Verificacion tecnica aceptada</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F5F5F7;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F5F5F7;padding:30px 0;">
+    <tr>
+        <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.10);">
+                <!-- Header -->
+                <tr>
+                    <td style="background-color:#7B2FFF;padding:24px 30px;text-align:center;">
+                        <img alt="Cinos" height="48" style="display:block;margin:0 auto 10px;" src="cid:cinos-logo"/>
+                        <h1 style="color:#ffffff;margin:0;font-size:20px;font-weight:700;">CINOS Automotores</h1>
+                        <p style="color:rgba(255,255,255,0.75);margin:6px 0 0;font-size:13px;">Verificacion Tecnica Vehicular</p>
+                    </td>
+                </tr>
+                <!-- Title -->
+                <tr>
+                    <td style="padding:25px 30px 10px;">
+                        <h2 style="color:#00C853;margin:0;font-size:18px;font-weight:600;">Verificacion tecnica aceptada</h2>
+                        <p style="color:#6B7080;margin:6px 0 0;font-size:13px;">
+                            Publicacion #<span th:text="${postId}"></span>
+                        </p>
+                    </td>
+                </tr>
+                <!-- Message for user -->
+                <tr th:if="${!isForTechnician}">
+                    <td style="padding:18px 30px;">
+                        <p style="color:#1A1A2E;font-size:14px;line-height:1.6;margin:0;">
+                            Tu solicitud de verificacion tecnica para
+                            <strong th:text="${vehicleMake} + ' ' + ${vehicleModel} + ' (' + ${vehicleYear} + ')'"></strong>
+                            fue aceptada. Un tecnico visitara tu vehiculo en la fecha indicada a continuacion.
+                        </p>
+                    </td>
+                </tr>
+                <!-- Message for technician -->
+                <tr th:if="${isForTechnician}">
+                    <td style="padding:18px 30px;">
+                        <p style="color:#1A1A2E;font-size:14px;line-height:1.6;margin:0;">
+                            Se acepto la verificacion tecnica para
+                            <strong th:text="${vehicleMake} + ' ' + ${vehicleModel} + ' (' + ${vehicleYear} + ')'"></strong>.
+                            A continuacion se detallan los datos del turno y del propietario.
+                        </p>
+                    </td>
+                </tr>
+                <!-- Appointment info -->
+                <tr>
+                    <td style="padding:10px 30px 18px;">
+                        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#EDE5FF;border-radius:8px;border:1px solid #c5adff;">
+                            <tr>
+                                <td style="padding:16px 20px;text-align:center;">
+                                    <p style="color:#6B7080;font-size:13px;margin:0 0 4px;">Fecha del turno</p>
+                                    <p style="color:#7B2FFF;font-size:18px;font-weight:700;margin:0;" th:text="${appointmentDate}"></p>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <!-- User data (only for technician) -->
+                <tr th:if="${isForTechnician}">
+                    <td style="padding:10px 30px;">
+                        <h3 style="color:#1A1A2E;margin:0 0 12px;font-size:15px;font-weight:600;">Datos del propietario</h3>
+                        <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #E0E0E6;border-radius:8px;border-collapse:collapse;">
+                            <tr>
+                                <td style="padding:10px 14px;border-bottom:1px solid #F5F5F7;color:#6B7080;width:40%;font-size:14px;">Nombre</td>
+                                <td style="padding:10px 14px;border-bottom:1px solid #F5F5F7;color:#1A1A2E;font-size:14px;" th:text="${userName} + ' ' + ${userLastname}"></td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 14px;border-bottom:1px solid #F5F5F7;color:#6B7080;font-size:14px;">Email</td>
+                                <td style="padding:10px 14px;border-bottom:1px solid #F5F5F7;color:#1A1A2E;font-size:14px;" th:text="${userEmail}"></td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 14px;border-bottom:1px solid #F5F5F7;color:#6B7080;font-size:14px;">Telefono</td>
+                                <td style="padding:10px 14px;border-bottom:1px solid #F5F5F7;color:#1A1A2E;font-size:14px;" th:text="${userPhone}"></td>
+                            </tr>
+                            <tr>
+                                <td style="padding:10px 14px;color:#6B7080;font-size:14px;">Ubicacion del vehiculo</td>
+                                <td style="padding:10px 14px;color:#1A1A2E;font-size:14px;" th:text="${vehicleAddress}"></td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <!-- CTA -->
+                <tr>
+                    <td style="padding:20px 30px 28px;text-align:center;">
+                        <a th:href="${postUrl}" style="display:inline-block;background-color:#7B2FFF;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:8px;">
+                            Ver publicacion
+                        </a>
+                    </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                    <td style="padding:24px 30px;border-top:1px solid #E0E0E6;text-align:center;">
+                        <p style="color:#9899A6;font-size:12px;margin:0;">Este es un email automatico generado por CINOS Automotores. No responder a este mensaje.</p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

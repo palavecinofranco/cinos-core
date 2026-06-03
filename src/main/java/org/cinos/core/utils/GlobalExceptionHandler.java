@@ -158,7 +158,7 @@ public class GlobalExceptionHandler {
                 .method(req.getMethod())
                 .message(e.getMessage())
                 .build();
-        log.warn("PostNotFoundException: {}", e.getMessage());
+        log.error("PostNotFoundException: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiError);
     }
 
@@ -170,7 +170,7 @@ public class GlobalExceptionHandler {
                 .method(req.getMethod())
                 .message(e.getMessage())
                 .build();
-        log.warn("UserNotFoundException: {}", e.getMessage());
+        log.error("UserNotFoundException: {}", e.getMessage());
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(apiError);
     }
 

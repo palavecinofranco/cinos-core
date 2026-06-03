@@ -50,7 +50,11 @@ public class AuthService {
         final Authentication authentication = new UsernamePasswordAuthenticationToken(loginRequest.username(), loginRequest.password());
         authenticationManager.authenticate(authentication);
 
-        final UserDTO user = userService.getByUsername(loginRequest.username());
+        // Resolver por username o email
+        final UserEntity userEntity = userRepository.findByUsername(loginRequest.username())
+                .or(() -> userRepository.findByEmail(loginRequest.username()))
+                .orElseThrow(() -> new UserNotFoundException("Usuario no encontrado"));
+        final UserDTO user = userMapper.toDTO(userEntity);
         final String accessToken = jwtService.generateToken(user);
         final String refreshToken = jwtService.generateRefreshToken(user);
 

@@ -1,8 +1,11 @@
 package org.cinos.core.technical_verification.service.impl;
 
 import lombok.RequiredArgsConstructor;
-//import org.cinos.core.mail.models.SendEmailRequest;
-//import org.cinos.core.mail.service.MailService;
+import lombok.extern.slf4j.Slf4j;
+import org.cinos.core.mail.models.SendEmailRequest;
+import org.cinos.core.mail.service.MailService;
+import org.cinos.core.posts.entity.PostImageEntity;
+import org.cinos.core.posts.service.impl.StorageService;
 import org.cinos.core.technical_verification.dto.OrderVerificationRequest;
 import org.cinos.core.technical_verification.dto.TechnicalVerificationPercentsDTO;
 import org.cinos.core.technical_verification.dto.TechnicalVerificationRequest;
@@ -16,20 +19,35 @@ import org.cinos.core.technical_verification.repository.TechnicalVerificationRep
 import org.cinos.core.technical_verification.service.ITechnicalVerificationService;
 import org.cinos.core.users.entity.UserEntity;
 import org.cinos.core.users.model.Role;
+import org.cinos.core.users.repository.UserRepository;
 import org.cinos.core.utils.exceptions.BusinessException;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
-import org.cinos.core.users.repository.UserRepository;
+import java.time.format.DateTimeFormatter;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class TechnicalVerificationService implements ITechnicalVerificationService {
 
     private final PostRepository postRepository;
-    //private final MailService mailService;
+    private final MailService mailService;
     private final TechnicalVerificationRepository technicalVerificationRepository;
     private final UserRepository userRepository;
+    private final StorageService storageService;
+
+    @Value("${app.frontend.url}")
+    private String frontendUrl;
+
+    private static final int MAX_IMAGE_ATTACHMENTS = 5;
 
     @Override
     public void orderVerification(final OrderVerificationRequest orderVerificationRequest) throws PostNotFoundException {
@@ -45,34 +63,41 @@ public class TechnicalVerificationService implements ITechnicalVerificationServi
             throw new BusinessException("No tenés verificaciones técnicas disponibles. Necesitás créditos para solicitar una verificación.");
         }
 
-        /*String message = """
-                <p>Pedido de verificación técnica para <strong>%s %s</strong></p>
-                <p><strong>Datos del vehiculo:</strong></p>
-                <ul>
-                    <li>Año: %s</li>
-                    <li>Kilómetros: %skm</li>
-                    <li>Transmisión: %s</li>
-                    <li>Combustible: %s</li>
-                </ul>
-                <p><strong>Datos del usuario:</strong></p>
-                <ul>
-                    <li>Nombre: %s %s</li>
-                    <li>Email: %s</li>
-                    <li>Teléfono: %s</li>
-                    <li>Ubicación: %s</li>
-                </ul>
-        """.formatted(post.getMake(), post.getModel(), post.getYear(), post.getKilometers(), post.getTransmission(), post.getFuel(), orderVerificationRequest.userPhone(), user.getLastname(), user.getEmail(), user.getPhone(), post.getLocation().getAddress());
-        SendEmailRequest sendEmailRequest = SendEmailRequest.builder()
-                .to(new String[]{"fpalavecino@cinos.org"})
-                .subject("Verificación pedida para la publicación " + post.getId())
-                .message(message)
-                .build();
-        mailService.sendMail(sendEmailRequest);*/
-
         TechnicalVerification technicalVerification = post.getTechnicalVerification();
         technicalVerification.setStatus(VerificationStatus.SENT);
         technicalVerification.setSentToVerificationDate(LocalDateTime.now());
         technicalVerificationRepository.save(technicalVerification);
+        log.info("Verificación técnica solicitada para la publicación con id {} por el usuario {}. Estado: {}. Créditos restantes: {}",
+                orderVerificationRequest.postId(), user.getEmail(), technicalVerification.getStatus(), user.getTechnicalVerificationCredits() - 1);
+
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("postId", post.getId());
+        variables.put("vehicleMake", post.getMake());
+        variables.put("vehicleModel", post.getModel());
+        variables.put("vehicleYear", post.getYear());
+        variables.put("vehicleKilometers", post.getKilometers());
+        variables.put("vehicleTransmission", post.getTransmission());
+        variables.put("vehicleFuel", post.getFuel());
+        variables.put("vehicleHp", post.getHp());
+        variables.put("vehicleMotor", post.getMotor());
+        variables.put("userName", user.getName());
+        variables.put("userLastname", user.getLastname());
+        variables.put("userEmail", user.getEmail());
+        variables.put("userPhone", orderVerificationRequest.userPhone());
+        variables.put("vehicleAddress", post.getLocation().getAddress());
+        variables.put("requestDate", LocalDateTime.now().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")));
+        variables.put("postUrl", frontendUrl + "/post/" + post.getId());
+
+        Map<String, byte[]> imageAttachments = downloadPostImages(post);
+
+        SendEmailRequest emailRequest = SendEmailRequest.builder()
+                .to(new String[]{"fpalavecino@cinos.org"})
+                .subject("Verificación técnica solicitada - " + post.getMake() + " " + post.getModel())
+                .templateName("verification-order")
+                .templateVariables(variables)
+                .binaryAttachments(imageAttachments)
+                .build();
+        mailService.sendMail(emailRequest);
 
         // Consumir un crédito de verificación técnica
         user.setTechnicalVerificationCredits(user.getTechnicalVerificationCredits() - 1);
@@ -90,37 +115,50 @@ public class TechnicalVerificationService implements ITechnicalVerificationServi
         post.getTechnicalVerification().setVerificationAppointmentDate(verificationAppointment);
         postRepository.save(post);
 
-        /*String message = """
-                <p>Tu solicitud para verificación técnica para %s %s ha sido aceptada.</p>
-                <ul>
-                    <li>Fecha de visita del técnico: %s</li>
-                </ul>
-                """.formatted(post.getMake(), post.getModel(), verificationAppointment.toString());
-        SendEmailRequest sendEmailRequest = SendEmailRequest.builder()
-                .to(new String[]{post.getUserAccount().getUser().getEmail()})
-                .subject("Verificación técnica aceptada")
-                .message(message)
+        log.info("Verificación técnica aceptada para la publicación con id {}. Fecha de turno: {}. Usuario: {}",
+                postId, verificationAppointment, post.getUserAccount().getUser().getEmail());
+
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy 'a las' HH:mm 'hs'");
+        UserEntity owner = post.getUserAccount().getUser();
+
+        Map<String, Object> userVars = new HashMap<>();
+        userVars.put("vehicleMake", post.getMake());
+        userVars.put("vehicleModel", post.getModel());
+        userVars.put("vehicleYear", post.getYear());
+        userVars.put("appointmentDate", verificationAppointment.format(formatter));
+        userVars.put("isForTechnician", false);
+        userVars.put("postId", post.getId());
+        userVars.put("postUrl", frontendUrl + "/post/" + post.getId());
+
+        SendEmailRequest userEmail = SendEmailRequest.builder()
+                .to(new String[]{owner.getEmail()})
+                .subject("Tu verificación técnica fue aceptada - " + post.getMake() + " " + post.getModel())
+                .templateName("verification-accepted")
+                .templateVariables(userVars)
                 .build();
-        String messageToTechnician = """
-                <p>Has aceptado la verificación técnica para %s %s</p>
-                <ul>
-                    <li>Fecha de visita: %s</li>
-                </ul>
-                <p><strong>Datos del usuario:</strong></p>
-                <ul>
-                    <li>Nombre: %s %s</li>
-                    <li>Email: %s</li>
-                    <li>Teléfono: %s</li>
-                    <li>Ubicación: %s</li>
-                </ul>
-                """.formatted(post.getMake(), post.getModel(), verificationAppointment.toString(), post.getUserAccount().getUser().getName(), post.getUserAccount().getUser().getLastname(), post.getUserAccount().getUser().getEmail(), post.getUserAccount().getUser().getPhone(), post.getLocation().getAddress());
-        SendEmailRequest sendEmailRequestToTechnician = SendEmailRequest.builder()
+        mailService.sendMail(userEmail);
+
+        Map<String, Object> techVars = new HashMap<>();
+        techVars.put("vehicleMake", post.getMake());
+        techVars.put("vehicleModel", post.getModel());
+        techVars.put("vehicleYear", post.getYear());
+        techVars.put("appointmentDate", verificationAppointment.format(formatter));
+        techVars.put("isForTechnician", true);
+        techVars.put("postId", post.getId());
+        techVars.put("postUrl", frontendUrl + "/post/" + post.getId());
+        techVars.put("userName", owner.getName());
+        techVars.put("userLastname", owner.getLastname());
+        techVars.put("userEmail", owner.getEmail());
+        techVars.put("userPhone", owner.getPhone());
+        techVars.put("vehicleAddress", post.getLocation().getAddress());
+
+        SendEmailRequest techEmail = SendEmailRequest.builder()
                 .to(new String[]{"fpalavecino@cinos.org"})
-                .subject("Verificación técnica aceptada")
-                .message(messageToTechnician)
+                .subject("Verificación aceptada - Turno " + verificationAppointment.format(formatter))
+                .templateName("verification-accepted")
+                .templateVariables(techVars)
                 .build();
-        mailService.sendMail(sendEmailRequest);
-        mailService.sendMail(sendEmailRequestToTechnician);*/
+        mailService.sendMail(techEmail);
     }
 
     @Override
@@ -168,22 +206,31 @@ public class TechnicalVerificationService implements ITechnicalVerificationServi
 
         technicalVerificationRepository.save(technicalVerification);
 
-        /*String message = "";
-        if (technicalVerification.getStatus() == VerificationStatus.APPROVED) {
-            message = """
-                    <p>Tu verificación técnica para %s %s ha sido aprobada.</p>
-                    """.formatted(post.getMake(), post.getModel());
-        } else if (technicalVerification.getStatus() == VerificationStatus.REJECTED) {
-            message = """
-                    <p>Tu verificación técnica para %s %s ha sido rechazada.</p>
-                    """.formatted(post.getMake(), post.getModel());
-        }
-        SendEmailRequest sendEmailRequest = SendEmailRequest.builder()
+        log.info("Verificación técnica procesada para la publicación con id {}. Puntaje total: {}. Estado: {}. Aprobada: {}",
+                request.postId(), totalScore, technicalVerification.getStatus(), technicalVerification.getIsApproved());
+
+        Map<String, Object> resultVars = new HashMap<>();
+        resultVars.put("vehicleMake", post.getMake());
+        resultVars.put("vehicleModel", post.getModel());
+        resultVars.put("postUrl", frontendUrl + "/post/" + post.getId());
+        resultVars.put("isApproved", technicalVerification.getStatus() == VerificationStatus.APPROVED);
+        resultVars.put("totalScore", totalScore);
+        resultVars.put("motorScore", request.motorVerification().averageScore());
+        resultVars.put("chassisScore", request.chassisVerification().averageScore());
+        resultVars.put("suspensionScore", request.suspensionAndSteeringVerification().averageScore());
+        resultVars.put("brakingScore", request.brakingSystemVerification().averageScore());
+        resultVars.put("tiresScore", request.tiresAndWheelsVerification().averageScore());
+        resultVars.put("paintScore", request.paintAndBodyworkVerification().averageScore());
+        resultVars.put("dashboardScore", request.dashboardAndIndicatorsVerification().averageScore());
+        resultVars.put("interiorScore", request.interiorVerification().averageScore());
+
+        SendEmailRequest resultEmail = SendEmailRequest.builder()
                 .to(new String[]{post.getUserAccount().getUser().getEmail()})
-                .subject("Verificación técnica procesada")
-                .message(message)
+                .subject("Resultado de verificación técnica - " + post.getMake() + " " + post.getModel())
+                .templateName("verification-result")
+                .templateVariables(resultVars)
                 .build();
-        mailService.sendMail(sendEmailRequest);*/
+        mailService.sendMail(resultEmail);
     }
 
     @Override
@@ -217,6 +264,37 @@ public class TechnicalVerificationService implements ITechnicalVerificationServi
                 .isApproved(technicalVerification.getIsApproved())
                 .verificationMadeDate(technicalVerification.getVerificationMadeDate())
                 .build();
+    }
+
+    private Map<String, byte[]> downloadPostImages(PostEntity post) {
+        Map<String, byte[]> result = new LinkedHashMap<>();
+        List<PostImageEntity> images = post.getImages();
+        if (images == null || images.isEmpty()) return result;
+
+        int limit = Math.min(images.size(), MAX_IMAGE_ATTACHMENTS);
+        for (int i = 0; i < limit; i++) {
+            String url = images.get(i).getUrl();
+            if (url == null) continue;
+            try {
+                String blobName = extractBlobName(url);
+                byte[] bytes = storageService.downloadFile(blobName);
+                String ext = blobName.contains(".") ? blobName.substring(blobName.lastIndexOf('.')) : ".jpg";
+                result.put("imagen_" + (i + 1) + ext, bytes);
+            } catch (Exception e) {
+                log.warn("No se pudo descargar imagen del vehículo: {}", url);
+            }
+        }
+        return result;
+    }
+
+    private String extractBlobName(String mediaLink) {
+        // GCS media link: https://storage.googleapis.com/download/storage/v1/b/BUCKET/o/BLOB_NAME?alt=media&...
+        int oIndex = mediaLink.indexOf("/o/");
+        if (oIndex < 0) return mediaLink;
+        String encoded = mediaLink.substring(oIndex + 3);
+        int qIndex = encoded.indexOf('?');
+        if (qIndex >= 0) encoded = encoded.substring(0, qIndex);
+        return URLDecoder.decode(encoded, StandardCharsets.UTF_8);
     }
 
 }

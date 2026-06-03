@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="es">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Resultado de verificacion tecnica</title>
+</head>
+<body style="margin:0;padding:0;background-color:#F5F5F7;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background-color:#F5F5F7;padding:30px 0;">
+    <tr>
+        <td align="center">
+            <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 16px rgba(0,0,0,0.10);">
+                <!-- Header -->
+                <tr>
+                    <td style="background-color:#7B2FFF;padding:24px 30px;text-align:center;">
+                        <img alt="Cinos" height="48" style="display:block;margin:0 auto 10px;" src="cid:cinos-logo"/>
+                        <h1 style="color:#ffffff;margin:0;font-size:20px;font-weight:700;">CINOS Automotores</h1>
+                        <p style="color:rgba(255,255,255,0.75);margin:6px 0 0;font-size:13px;">Verificacion Tecnica Vehicular</p>
+                    </td>
+                </tr>
+                <!-- Result banner - Approved -->
+                <tr th:if="${isApproved}">
+                    <td style="background-color:#dcfce7;padding:24px 30px;text-align:center;border-bottom:3px solid #00C853;">
+                        <h2 style="color:#15803d;margin:0;font-size:22px;font-weight:700;">VERIFICACION APROBADA</h2>
+                        <p style="color:#6B7080;margin:8px 0 0;font-size:14px;" th:text="${vehicleMake} + ' ' + ${vehicleModel}"></p>
+                    </td>
+                </tr>
+                <!-- Result banner - Rejected -->
+                <tr th:unless="${isApproved}">
+                    <td style="background-color:#fee2e2;padding:24px 30px;text-align:center;border-bottom:3px solid #FF3D57;">
+                        <h2 style="color:#b91c1c;margin:0;font-size:22px;font-weight:700;">VERIFICACION RECHAZADA</h2>
+                        <p style="color:#6B7080;margin:8px 0 0;font-size:14px;" th:text="${vehicleMake} + ' ' + ${vehicleModel}"></p>
+                    </td>
+                </tr>
+                <!-- Description -->
+                <tr>
+                    <td style="padding:20px 30px 10px;">
+                        <p th:if="${isApproved}" style="color:#1A1A2E;font-size:14px;line-height:1.6;margin:0;">
+                            Tu vehiculo <strong th:text="${vehicleMake} + ' ' + ${vehicleModel}"></strong> paso la verificacion tecnica satisfactoriamente.
+                            A continuacion podes ver el detalle por categoria.
+                        </p>
+                        <p th:unless="${isApproved}" style="color:#1A1A2E;font-size:14px;line-height:1.6;margin:0;">
+                            Tu vehiculo <strong th:text="${vehicleMake} + ' ' + ${vehicleModel}"></strong> no alcanzo el puntaje minimo requerido en la verificacion tecnica.
+                            A continuacion podes ver el detalle por categoria.
+                        </p>
+                    </td>
+                </tr>
+                <!-- Score breakdown -->
+                <tr>
+                    <td style="padding:18px 30px;">
+                        <h3 style="color:#1A1A2E;margin:0 0 16px;font-size:15px;font-weight:600;">Detalle por categoria</h3>
+                        <table width="100%" cellpadding="0" cellspacing="0">
+                            <!-- Motor -->
+                            <tr>
+                                <td style="padding:6px 0;color:#1A1A2E;font-size:13px;width:45%;">Motor</td>
+                                <td style="padding:6px 0;width:55%;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#E0E0E6;border-radius:4px;">
+                                        <tr>
+                                            <td th:style="'width:' + ${motorScore} + '%;background-color:' + (${motorScore >= 90} ? '#00C853' : (${motorScore >= 60} ? '#FFB300' : '#FF3D57')) + ';border-radius:4px;padding:3px 8px;text-align:center;color:#fff;font-size:11px;font-weight:600;'" th:text="${#numbers.formatDecimal(motorScore, 1, 0)} + '%'"></td>
+                                            <td th:if="${motorScore < 100}" style="padding:0;"></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <!-- Chasis -->
+                            <tr>
+                                <td style="padding:6px 0;color:#1A1A2E;font-size:13px;">Chasis</td>
+                                <td style="padding:6px 0;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#E0E0E6;border-radius:4px;">
+                                        <tr>
+                                            <td th:style="'width:' + ${chassisScore} + '%;background-color:' + (${chassisScore >= 90} ? '#00C853' : (${chassisScore >= 60} ? '#FFB300' : '#FF3D57')) + ';border-radius:4px;padding:3px 8px;text-align:center;color:#fff;font-size:11px;font-weight:600;'" th:text="${#numbers.formatDecimal(chassisScore, 1, 0)} + '%'"></td>
+                                            <td th:if="${chassisScore < 100}" style="padding:0;"></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <!-- Suspension y Direccion -->
+                            <tr>
+                                <td style="padding:6px 0;color:#1A1A2E;font-size:13px;">Suspension y Direccion</td>
+                                <td style="padding:6px 0;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#E0E0E6;border-radius:4px;">
+                                        <tr>
+                                            <td th:style="'width:' + ${suspensionScore} + '%;background-color:' + (${suspensionScore >= 90} ? '#00C853' : (${suspensionScore >= 60} ? '#FFB300' : '#FF3D57')) + ';border-radius:4px;padding:3px 8px;text-align:center;color:#fff;font-size:11px;font-weight:600;'" th:text="${#numbers.formatDecimal(suspensionScore, 1, 0)} + '%'"></td>
+                                            <td th:if="${suspensionScore < 100}" style="padding:0;"></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <!-- Sistema de Frenos -->
+                            <tr>
+                                <td style="padding:6px 0;color:#1A1A2E;font-size:13px;">Sistema de Frenos</td>
+                                <td style="padding:6px 0;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#E0E0E6;border-radius:4px;">
+                                        <tr>
+                                            <td th:style="'width:' + ${brakingScore} + '%;background-color:' + (${brakingScore >= 90} ? '#00C853' : (${brakingScore >= 60} ? '#FFB300' : '#FF3D57')) + ';border-radius:4px;padding:3px 8px;text-align:center;color:#fff;font-size:11px;font-weight:600;'" th:text="${#numbers.formatDecimal(brakingScore, 1, 0)} + '%'"></td>
+                                            <td th:if="${brakingScore < 100}" style="padding:0;"></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <!-- Neumaticos y Llantas -->
+                            <tr>
+                                <td style="padding:6px 0;color:#1A1A2E;font-size:13px;">Neumaticos y Llantas</td>
+                                <td style="padding:6px 0;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#E0E0E6;border-radius:4px;">
+                                        <tr>
+                                            <td th:style="'width:' + ${tiresScore} + '%;background-color:' + (${tiresScore >= 90} ? '#00C853' : (${tiresScore >= 60} ? '#FFB300' : '#FF3D57')) + ';border-radius:4px;padding:3px 8px;text-align:center;color:#fff;font-size:11px;font-weight:600;'" th:text="${#numbers.formatDecimal(tiresScore, 1, 0)} + '%'"></td>
+                                            <td th:if="${tiresScore < 100}" style="padding:0;"></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <!-- Pintura y Carroceria -->
+                            <tr>
+                                <td style="padding:6px 0;color:#1A1A2E;font-size:13px;">Pintura y Carroceria</td>
+                                <td style="padding:6px 0;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#E0E0E6;border-radius:4px;">
+                                        <tr>
+                                            <td th:style="'width:' + ${paintScore} + '%;background-color:' + (${paintScore >= 90} ? '#00C853' : (${paintScore >= 60} ? '#FFB300' : '#FF3D57')) + ';border-radius:4px;padding:3px 8px;text-align:center;color:#fff;font-size:11px;font-weight:600;'" th:text="${#numbers.formatDecimal(paintScore, 1, 0)} + '%'"></td>
+                                            <td th:if="${paintScore < 100}" style="padding:0;"></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <!-- Tablero e Indicadores -->
+                            <tr>
+                                <td style="padding:6px 0;color:#1A1A2E;font-size:13px;">Tablero e Indicadores</td>
+                                <td style="padding:6px 0;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#E0E0E6;border-radius:4px;">
+                                        <tr>
+                                            <td th:style="'width:' + ${dashboardScore} + '%;background-color:' + (${dashboardScore >= 90} ? '#00C853' : (${dashboardScore >= 60} ? '#FFB300' : '#FF3D57')) + ';border-radius:4px;padding:3px 8px;text-align:center;color:#fff;font-size:11px;font-weight:600;'" th:text="${#numbers.formatDecimal(dashboardScore, 1, 0)} + '%'"></td>
+                                            <td th:if="${dashboardScore < 100}" style="padding:0;"></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                            <!-- Interior -->
+                            <tr>
+                                <td style="padding:6px 0;color:#1A1A2E;font-size:13px;">Interior</td>
+                                <td style="padding:6px 0;">
+                                    <table width="100%" cellpadding="0" cellspacing="0" style="background:#E0E0E6;border-radius:4px;">
+                                        <tr>
+                                            <td th:style="'width:' + ${interiorScore} + '%;background-color:' + (${interiorScore >= 90} ? '#00C853' : (${interiorScore >= 60} ? '#FFB300' : '#FF3D57')) + ';border-radius:4px;padding:3px 8px;text-align:center;color:#fff;font-size:11px;font-weight:600;'" th:text="${#numbers.formatDecimal(interiorScore, 1, 0)} + '%'"></td>
+                                            <td th:if="${interiorScore < 100}" style="padding:0;"></td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <!-- Legend -->
+                <tr>
+                    <td style="padding:8px 30px 20px;">
+                        <table cellpadding="0" cellspacing="0">
+                            <tr>
+                                <td style="padding:0 12px 0 0;">
+                                    <table cellpadding="0" cellspacing="0"><tr>
+                                        <td style="width:12px;height:12px;background-color:#00C853;border-radius:2px;"></td>
+                                        <td style="padding-left:5px;color:#6B7080;font-size:11px;">Bueno (90%+)</td>
+                                    </tr></table>
+                                </td>
+                                <td style="padding:0 12px 0 0;">
+                                    <table cellpadding="0" cellspacing="0"><tr>
+                                        <td style="width:12px;height:12px;background-color:#FFB300;border-radius:2px;"></td>
+                                        <td style="padding-left:5px;color:#6B7080;font-size:11px;">Observado (60-89%)</td>
+                                    </tr></table>
+                                </td>
+                                <td>
+                                    <table cellpadding="0" cellspacing="0"><tr>
+                                        <td style="width:12px;height:12px;background-color:#FF3D57;border-radius:2px;"></td>
+                                        <td style="padding-left:5px;color:#6B7080;font-size:11px;">Malo (&lt;60%)</td>
+                                    </tr></table>
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <!-- CTA -->
+                <tr>
+                    <td style="padding:20px 30px 28px;text-align:center;">
+                        <a th:href="${postUrl}" style="display:inline-block;background-color:#7B2FFF;color:#ffffff;font-size:14px;font-weight:600;text-decoration:none;padding:12px 28px;border-radius:8px;">
+                            Ver publicacion
+                        </a>
+                    </td>
+                </tr>
+                <!-- Footer -->
+                <tr>
+                    <td style="padding:24px 30px;border-top:1px solid #E0E0E6;text-align:center;">
+                        <p style="color:#9899A6;font-size:12px;margin:0;">Este es un email automatico generado por CINOS Automotores. No responder a este mensaje.</p>
+                    </td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+</body>
+</html>

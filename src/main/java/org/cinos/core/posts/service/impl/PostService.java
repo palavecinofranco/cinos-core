@@ -4,6 +4,7 @@ import org.cinos.core.mail.models.SendEmailRequest;
 import org.cinos.core.mail.service.MailService;
 import org.cinos.core.posts.controller.request.PostCreateRequest;
 import org.cinos.core.posts.dto.PostDTO;
+import org.cinos.core.posts.dto.PostLocationDTO;
 import org.cinos.core.posts.dto.PostFeedDTO;
 import org.cinos.core.posts.dto.PostFilterDTO;
 import org.cinos.core.posts.dto.PostProfileDTO;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -41,6 +43,9 @@ import java.util.List;
 import java.util.Map;
 
 import org.cinos.core.users.service.impl.UserService;
+import org.cinos.core.users.entity.UserEntity;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.cinos.core.notifications.service.AutomaticNotificationService;
 
 @Service
@@ -65,7 +70,7 @@ public class PostService implements IPostService {
 
     @Override
     public List<PostDTO> getPostPageable(Integer page, Integer size) {
-        List<PostEntity> entityList = postRepository.findAll(PageRequest.of(page, size)).toList();
+        List<PostEntity> entityList = postRepository.findAll(PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publicationDate"))).toList();
         return entityList.stream().map(postMapper::toDTO).toList();
     }
 
@@ -119,6 +124,8 @@ public class PostService implements IPostService {
                     .kilometers(e.getKilometers())
                     .userId(e.getUserAccount().getId())
                     .isVerified(e.getIsVerified())
+                    .isUserPremium(e.getUserAccount().getUser().getRoles() != null &&
+                            e.getUserAccount().getUser().getRoles().contains(org.cinos.core.users.model.Role.PREMIUM))
                     .build();
         });
     }
@@ -139,7 +146,7 @@ public class PostService implements IPostService {
 
     @Override
     public List<PostDTO> getByUserId(Long userId) {
-        return postRepository.findByUserAccount_Id(userId).stream().map(postMapper::toDTO).toList();
+        return postRepository.findByUserAccount_IdOrderByPublicationDateDesc(userId).stream().map(postMapper::toDTO).toList();
     }
 
     @Override
@@ -197,10 +204,11 @@ public class PostService implements IPostService {
             }
         }
 
+        PostLocationDTO locationDTO = request.location();
         PostLocationEntity location = PostLocationEntity.builder()
-                .address(request.location().address())
-                .lat(request.location().lat())
-                .lng(request.location().lng())
+                .address(locationDTO != null ? locationDTO.address() : null)
+                .lat(locationDTO != null ? locationDTO.lat() : null)
+                .lng(locationDTO != null ? locationDTO.lng() : null)
                 .post(postEntity)
                 .build();
 
@@ -224,7 +232,7 @@ public class PostService implements IPostService {
 
     @Override
     public List<PostProfileDTO> getPostsProfile(Long userId) throws UserNotFoundException {
-        List<PostEntity> posts = postRepository.findAllByUserAccount_IdAndActiveTrue(userId);
+        List<PostEntity> posts = postRepository.findAllByUserAccount_IdAndActiveTrueOrderByPublicationDateDesc(userId);
         return posts.stream().map(e -> PostProfileDTO.builder()
                 .id(e.getId())
                 .firstImage(e.getImages().get(0).getUrl())
@@ -312,7 +320,15 @@ public class PostService implements IPostService {
         System.out.println("Size: " + postFilterDTO.size());
         System.out.println("=======================");
         
-        Page<PostEntity> postPage = postRepository.findAll(PostSpecifications.postFilterSpec(postFilterDTO), PageRequest.of(postFilterDTO.page(), postFilterDTO.size()));
+        UsernamePasswordAuthenticationToken auth =
+                (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+        UserEntity currentUser = (UserEntity) auth.getPrincipal();
+
+        int page = postFilterDTO.page() != null ? postFilterDTO.page() : 0;
+        int size = postFilterDTO.size() != null ? postFilterDTO.size() : 12;
+        Page<PostEntity> postPage = postRepository.findAll(
+                PostSpecifications.postFilterSpec(postFilterDTO, currentUser.getId()),
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "publicationDate")));
         
         // Debug: Log de resultados
         System.out.println("=== RESULTADOS ===");

@@ -43,6 +43,9 @@ public class SubscriptionController {
     @Value("${stripe.webhook.secret}")
     private String endpointSecret;
 
+    @Value("${app.frontend.url:http://localhost:4200}")
+    private String frontendUrl;
+
     /**
      * Obtiene los planes de suscripción disponibles
      */
@@ -318,7 +321,7 @@ public class SubscriptionController {
             UsernamePasswordAuthenticationToken authentication = (UsernamePasswordAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
             UserEntity userEntity = (UserEntity) authentication.getPrincipal();
 
-            String successUrl = "http://localhost:8100/verification-details/" + request.postId() + "?justBought=true";
+            String successUrl = frontendUrl + "/verification-details/" + request.postId() + "?justBought=true";
 
             String checkoutUrl = stripeService.createVerificationAccessCheckoutSession(
                 request.postId(), 
@@ -389,7 +392,7 @@ public class SubscriptionController {
                         user.setStripeSubscriptionId(invoice.getSubscription());
                         user.getRoles().add(Role.PREMIUM);
                     }
-                    user.setTechnicalVerificationCredits(1); // Resetear créditos
+                    user.setTechnicalVerificationCredits(3);
                     user.setTechnicalVerificationReportsCredits(3);
                     userRepository.save(user);
                     log.info("🚀 Usuario actualizado a PREMIUM y créditos reseteados: {}", user.getEmail());
@@ -411,8 +414,10 @@ public class SubscriptionController {
                     user.getRoles().remove(org.cinos.core.users.model.Role.PREMIUM);
                 }
                 user.setStripeSubscriptionId(null);
+                user.setTechnicalVerificationCredits(0);
+                user.setTechnicalVerificationReportsCredits(0);
                 userRepository.save(user);
-                System.out.println("🚨 Rol PREMIUM removido y subscriptionId limpiado para usuario: " + user.getEmail());
+                log.info("🚨 Suscripción cancelada para {}: rol PREMIUM removido, créditos reseteados a 0", user.getEmail());
             } else {
                 System.err.println("❌ Usuario no encontrado con subscriptionId: " + subscriptionId);
             }
@@ -432,16 +437,18 @@ public class SubscriptionController {
                     System.out.println("⚠️ Suscripción cancelada pero aún activa hasta el final del período para usuario: " + user.getEmail());
                     // El rol premium se mantiene hasta que la suscripción realmente termine
                 } else if ("active".equals(status) || "trialing".equals(status)) {
-                    System.out.println("✅ Suscripción activa para usuario: " + user.getEmail());
-                    // Asegurar que el usuario tenga rol premium
+                    log.info("✅ Suscripción activa/renovada para usuario: {}", user.getEmail());
                     if (user.getRoles() == null) {
                         user.setRoles(new ArrayList<>());
                     }
                     if (!user.getRoles().contains(Role.PREMIUM)) {
                         user.getRoles().add(Role.PREMIUM);
-                        userRepository.save(user);
-                        System.out.println("🚀 Rol PREMIUM agregado para usuario: " + user.getEmail());
                     }
+                    // Resetear créditos en cada renovación mensual
+                    user.setTechnicalVerificationCredits(3);
+                    user.setTechnicalVerificationReportsCredits(3);
+                    userRepository.save(user);
+                    log.info("🔄 Créditos renovados (3/3) para usuario: {}", user.getEmail());
                 }
             } else {
                 System.err.println("❌ Usuario no encontrado con subscriptionId: " + subscriptionId);
